@@ -140,6 +140,7 @@ export class Game {
     console.log(`Spawned ${this.apples.length} objects (${positions.filter((_, i) => i < 5).length} boxes, ${positions.length - 5} pyramids)`);
     console.log(`Hole at (${this.hole.position.x}, ${this.hole.position.z}), radius: ${this.hole.radius}`);
     console.log(`First object at (${this.apples[0].position.x}, ${this.apples[0].position.z}), y: ${this.apples[0].position.y}`);
+    console.log(`Object physics body at y: ${this.apples[0].body.position.y}`);
   }
 
   private checkCollisions(): void {
@@ -153,14 +154,9 @@ export class Game {
       const dz = apple.position.z - holePos.z;
       const distance = Math.sqrt(dx * dx + dz * dz);
 
-      if (distance < 15) {
-        console.log(`Object nearby! Distance: ${distance.toFixed(1)}, hole: (${holePos.x.toFixed(1)}, ${holePos.z.toFixed(1)}), obj: (${apple.position.x.toFixed(1)}, ${apple.position.z.toFixed(1)})`);
-      }
-
-      // Object is over the hole - disable ground collision so it falls
-      if (!apple.falling && distance < this.hole.radius * 0.8) {
-        console.log(`Object falling! Distance: ${distance.toFixed(2)}, hole radius: ${this.hole.radius}`);
-        apple.body.collisionResponse = false;
+      // Mark as falling once it starts dropping (natural physics)
+      if (!apple.falling && apple.body.position.y < -0.5) {
+        console.log(`Object tipped naturally and falling!`);
         apple.startFalling();
       }
 
@@ -209,10 +205,8 @@ export class Game {
     // Update hole position
     this.hole.update(deltaTime, DEFAULT_CONFIG.planeSize);
 
-    // Debug hole movement
-    if (velocity.x !== 0 || velocity.z !== 0) {
-      console.log(`Hole moving: pos (${this.hole.position.x.toFixed(1)}, ${this.hole.position.z.toFixed(1)}), vel (${velocity.x}, ${velocity.z})`);
-    }
+    // Update physics world with hole position
+    this.physicsWorld.updateHole(this.hole.position.x, this.hole.position.z, this.hole.radius);
 
     // Update physics
     this.physicsWorld.step(deltaTime);

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(cd:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat(game): implement initial Hole.io-style browser game\n\n- Set up Vite + TypeScript project with Three.js and Cannon.js physics\n- Implement FSD architecture (app, entities, features, shared)\n- Create movable hole with WASD/arrow controls and camera following\n- Add 5 boxes (cubes/parallelepipeds) and 10 pyramids as consumable objects\n- Implement basic collision detection and scoring system\n- Add spatial partitioning with Quadtree for performance\n- Include implementation plan documentation\n\nNote: Physics tipping behavior for realistic object consumption is not yet implemented. Objects currently use simplified falling mechanics.\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

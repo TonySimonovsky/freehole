@@ -84,13 +84,7 @@ export class Apple {
   startFalling(): void {
     this.falling = true;
     this.body.wakeUp();
-    // Don't set collisionResponse to false - let natural physics handle the fall
-    // Apply slight random spin for visual effect
-    this.body.angularVelocity.set(
-      (Math.random() - 0.5) * 3,
-      (Math.random() - 0.5) * 3,
-      (Math.random() - 0.5) * 3
-    );
+    // Let physics handle the fall naturally - no artificial spin
   }
 
   markConsumed(): void {
