@@ -1,0 +1,27 @@
+{
+  "name": "init-claudecode",
+  "version": "1.0.0",
+  "description": "A tiny TypeScript browser game inspired by Hole.io: move a hole across the ground and let objects fall in to earn points.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/three": "^0.181.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  },
+  "dependencies": {
+    "cannon-es": "^0.20.0",
+    "three": "^0.181.0"
+  }
+}
