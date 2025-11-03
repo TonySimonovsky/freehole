@@ -82,10 +82,12 @@ export class PhysicsWorld {
         depthTest: false, // Render on top
       });
       const debugMesh = new THREE.Mesh(debugGeometry, debugMaterial);
-      debugMesh.position.set(centerX, 0.5, centerZ); // Above the visual hole
+      // Position at relative offset (will be moved by Game.ts update loop)
+      debugMesh.position.set(centerX, 0.5, centerZ);
       debugMesh.quaternion.copy(quaternion as any);
       debugMesh.renderOrder = 999; // Render last
       this.debugMeshes.push(debugMesh);
+      // Store relative positions (offset from hole center)
       this.debugMeshOriginalPositions.push({ x: centerX, z: centerZ });
     }
 
@@ -116,17 +118,19 @@ export class PhysicsWorld {
   }
 
   updateHole(x: number, z: number, radius: number): void {
-    const grown = Math.abs(radius - this.holeRadius) > 1;
+    const grown = Math.abs(radius - this.holeRadius) > 0.01;
+
+    // Update hole position first, before rebuilding
+    this.holeX = x;
+    this.holeZ = z;
 
     if (grown) {
       this.holeRadius = radius;
       this.rebuildGround();
     }
 
-    // Simply move the entire ground body to follow the hole
+    // Move the entire ground body to follow the hole
     this.groundBody.position.set(x, 0, z);
-    this.holeX = x;
-    this.holeZ = z;
   }
 
   step(deltaTime: number): void {

@@ -1,0 +1,1 @@
+export { duckConfig } from './config';

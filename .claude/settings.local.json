@@ -3,7 +3,12 @@
     "allow": [
       "Bash(cd:*)",
       "Bash(npm install:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nfeat(game): implement initial Hole.io-style browser game\n\n- Set up Vite + TypeScript project with Three.js and Cannon.js physics\n- Implement FSD architecture (app, entities, features, shared)\n- Create movable hole with WASD/arrow controls and camera following\n- Add 5 boxes (cubes/parallelepipeds) and 10 pyramids as consumable objects\n- Implement basic collision detection and scoring system\n- Add spatial partitioning with Quadtree for performance\n- Include implementation plan documentation\n\nNote: Physics tipping behavior for realistic object consumption is not yet implemented. Objects currently use simplified falling mechanics.\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat(game): implement initial Hole.io-style browser game\n\n- Set up Vite + TypeScript project with Three.js and Cannon.js physics\n- Implement FSD architecture (app, entities, features, shared)\n- Create movable hole with WASD/arrow controls and camera following\n- Add 5 boxes (cubes/parallelepipeds) and 10 pyramids as consumable objects\n- Implement basic collision detection and scoring system\n- Add spatial partitioning with Quadtree for performance\n- Include implementation plan documentation\n\nNote: Physics tipping behavior for realistic object consumption is not yet implemented. Objects currently use simplified falling mechanics.\nEOF\n)\")",
+      "Bash(git commit -m \"fix(physics): implement moving ground with square hole for tipping mechanics\n\n- Replace segmented radial ground with 4-box square hole approach\n- Move entire ground body position instead of rebuilding segments\n- Only rebuild ground when hole grows, not on every movement\n- Remove all artificial torque and force application\n- Objects now tip naturally when over hole edge based on physics\n- Eliminate object disturbance from frequent ground rebuilds\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(tree:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

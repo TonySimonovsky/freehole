@@ -1,0 +1,1 @@
+export { octopusConfig } from './config';

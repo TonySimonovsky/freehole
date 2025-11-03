@@ -1,0 +1,1 @@
+export { policeCarConfig } from './config';

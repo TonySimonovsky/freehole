@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { Plane } from '../entities/Plane';
-import { Hole } from '../entities/Hole';
+import { Plane } from '../entities/plane';
+import { Hole } from '../entities/hole';
 import { Apple } from '../entities/Apple';
-import { GameObject } from '../entities/GameObject';
+import { GameObject, consumableObjectRegistry } from '../entities/consumable-objects';
 import { ModelLoader } from '../shared/ModelLoader';
 import { InputController } from '../features/InputController';
 import { CameraController } from '../features/CameraController';
@@ -155,19 +155,19 @@ export class Game {
     try {
       console.log('Loading 3D models...');
 
-      const models = [
-        { path: '/models/rubber-duck.glb', name: 'duck' },
-        { path: '/models/dinosaur.glb', name: 'dinosaur' },
-        { path: '/models/dragon.glb', name: 'dragon' },
-        { path: '/models/octopus.glb', name: 'octopus' },
-        { path: '/models/police-car.glb', name: 'police-car' },
-      ];
+      const objectNames = ['rubber-duck', 'dinosaur', 'dragon', 'octopus', 'police-car'];
 
       const loadedModels = await Promise.all(
-        models.map(async (m) => {
-          const model = await ModelLoader.load(m.path);
-          console.log(`${m.name} loaded`);
-          return { model, name: m.name };
+        objectNames.map(async (name) => {
+          const config = consumableObjectRegistry.get(name);
+          if (!config) {
+            console.warn(`No config found for ${name}`);
+            return null;
+          }
+
+          const model = await ModelLoader.load(config.modelPath);
+          console.log(`${name} loaded`);
+          return { model, name, config };
         })
       );
 
@@ -176,7 +176,11 @@ export class Game {
       const visibleRadius = DEFAULT_CONFIG.cameraDistance * 0.8;
       const sizesMultipliers = [0.5, 0.875, 1.25, 1.625, 2.0]; // Various sizes from 0.5x to 2x
 
-      for (const { model, name } of loadedModels) {
+      for (const item of loadedModels) {
+        if (!item) continue;
+
+        const { model, name, config } = item;
+
         for (let i = 0; i < 5; i++) {
           // Random position within visible area
           const angle = Math.random() * Math.PI * 2;
@@ -184,21 +188,24 @@ export class Game {
           const x = Math.cos(angle) * distance;
           const z = Math.sin(angle) * distance;
 
-          const obj = new GameObject(x, z, this.physicsWorld.world, {
-            model: model,
-            modelName: name, // Pass model name for physics config lookup
-            size: this.hole.radius * sizesMultipliers[i],
-            mass: 2,
-            friction: 0.7,
-            restitution: 0.4,
-          });
+          const obj = new GameObject(
+            x, z, this.physicsWorld.world,
+            {
+              model: model,
+              size: this.hole.radius * sizesMultipliers[i],
+              mass: config.properties.mass,
+              friction: config.properties.friction,
+              restitution: config.properties.restitution,
+            },
+            config.physics // Pass physics config directly
+          );
 
           this.gameObjects.push(obj);
           this.scene.add(obj.mesh);
         }
       }
 
-      console.log(`Spawned ${loadedModels.length * 5} objects (5 copies of ${loadedModels.length} models)`);
+      console.log(`Spawned ${loadedModels.filter(m => m).length * 5} objects (5 copies of ${loadedModels.filter(m => m).length} models)`);
     } catch (error) {
       console.error('Failed to load models:', error);
       console.log('Continuing without models...');
@@ -231,16 +238,7 @@ export class Game {
         // Grow hole every 10 objects
         if (Math.floor(this.score / 10) > Math.floor(previousScore / 10)) {
           this.hole.grow(0.5);
-
-          // Remove old debug meshes from scene
-          for (const debugMesh of this.physicsWorld.debugMeshes) {
-            this.scene.remove(debugMesh);
-          }
-
-          // Add new debug meshes (they were recreated in rebuildGround)
-          for (const debugMesh of this.physicsWorld.debugMeshes) {
-            this.scene.add(debugMesh);
-          }
+          // Note: rebuildGround() is called in updateHole(), which handles debug meshes
         }
 
         apple.markConsumed();
@@ -270,16 +268,7 @@ export class Game {
         // Grow hole every 10 objects
         if (Math.floor(this.score / 10) > Math.floor(previousScore / 10)) {
           this.hole.grow(0.5);
-
-          // Remove old debug meshes from scene
-          for (const debugMesh of this.physicsWorld.debugMeshes) {
-            this.scene.remove(debugMesh);
-          }
-
-          // Add new debug meshes (they were recreated in rebuildGround)
-          for (const debugMesh of this.physicsWorld.debugMeshes) {
-            this.scene.add(debugMesh);
-          }
+          // Note: rebuildGround() is called in updateHole(), which handles debug meshes
         }
 
         obj.markConsumed();
@@ -316,8 +305,21 @@ export class Game {
     // Update hole position
     this.hole.update(deltaTime, DEFAULT_CONFIG.planeSize);
 
-    // Update physics world with hole position
+    // Update physics world with hole position (may rebuild ground/debug meshes)
+    const oldDebugMeshes = this.physicsWorld.debugMeshes;
     this.physicsWorld.updateHole(this.hole.position.x, this.hole.position.z, this.hole.radius);
+
+    // If debug meshes changed (ground was rebuilt), update scene
+    if (oldDebugMeshes !== this.physicsWorld.debugMeshes) {
+      // Remove old meshes
+      for (const mesh of oldDebugMeshes) {
+        this.scene.remove(mesh);
+      }
+      // Add new meshes
+      for (const mesh of this.physicsWorld.debugMeshes) {
+        this.scene.add(mesh);
+      }
+    }
 
     // Update debug mesh positions to follow hole
     const holeOffset = { x: this.hole.position.x, z: this.hole.position.z };

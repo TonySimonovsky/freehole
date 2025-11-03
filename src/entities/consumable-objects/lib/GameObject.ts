@@ -1,16 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { ModelPhysicsRegistry } from '../shared/PhysicsShapes';
-
-interface GameObjectConfig {
-  modelPath?: string;  // Path to .glb/.gltf file
-  model?: THREE.Group; // Pre-loaded model
-  modelName?: string;  // Name for physics config lookup
-  size: number;
-  mass: number;
-  friction?: number;
-  restitution?: number;
-}
+import { PhysicsShapeConfig } from '@/shared/physics/types';
+import { GameObjectConfig } from './types';
 
 export class GameObject {
   mesh: THREE.Group | THREE.Mesh;
@@ -18,14 +9,17 @@ export class GameObject {
   consumed = false;
   falling = false;
   private size: number;
+  private physicsConfig?: PhysicsShapeConfig;
 
   constructor(
     x: number,
     z: number,
     physicsWorld: CANNON.World,
-    config: GameObjectConfig
+    config: GameObjectConfig,
+    physicsConfig?: PhysicsShapeConfig
   ) {
     this.size = config.size;
+    this.physicsConfig = physicsConfig;
 
     if (config.model) {
       // Use pre-loaded model
@@ -94,14 +88,10 @@ export class GameObject {
       }),
     });
 
-    // Check if we have a custom physics config for this model
-    const physicsConfig = config.modelName ? ModelPhysicsRegistry.get(config.modelName) : undefined;
-
-    if (physicsConfig) {
-      // Use registered physics configuration
-      this.applyPhysicsConfig(physicsConfig, boxSize);
+    // Use provided physics config or fallback to automatic generation
+    if (this.physicsConfig) {
+      this.applyPhysicsConfig(this.physicsConfig, boxSize);
     } else {
-      // Use automatic physics generation (fallback)
       this.generateAutoPhysics(boxSize);
     }
 
