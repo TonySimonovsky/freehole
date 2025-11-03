@@ -13,28 +13,82 @@ export class Hole {
 
     this.mesh = new THREE.Group();
 
-    // Create the hole rim (ring)
-    const rimGeometry = new THREE.RingGeometry(radius * 0.9, radius, 32);
-    const rimMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1a1a1a,
-      side: THREE.DoubleSide,
-    });
-    const rim = new THREE.Mesh(rimGeometry, rimMaterial);
-    rim.rotation.x = -Math.PI / 2;
-    rim.position.y = 0.05; // Slightly above ground
+    const height = 0.5; // Shim height
+    const innerRadius = radius * 0.85; // Slightly smaller for better rim visibility
 
-    // Create the hole interior (dark circle)
-    const holeGeometry = new THREE.CircleGeometry(radius * 0.9, 32);
-    const holeMaterial = new THREE.MeshBasicMaterial({
+    // Create outer rim (torus for smooth metallic look) - GOLDEN
+    const torusGeometry = new THREE.TorusGeometry(
+      (radius + innerRadius) / 2, // Ring radius (middle of rim)
+      (radius - innerRadius) / 2, // Tube radius (rim thickness)
+      16,                         // Tubular segments
+      32                          // Radial segments
+    );
+    const rimMaterial = new THREE.MeshStandardMaterial({
+      color: 0xFFD700, // Gold color
+      metalness: 0.7,
+      roughness: 0.2,
+    });
+    const rim = new THREE.Mesh(torusGeometry, rimMaterial);
+    rim.rotation.x = Math.PI / 2; // Make it horizontal
+    rim.position.y = 0.02;
+    rim.castShadow = true;
+    rim.receiveShadow = true;
+
+    // Create black circle at plane level (fills the space inside ring)
+    const blackCircleGeometry = new THREE.CircleGeometry(innerRadius, 32);
+    const blackCircleMaterial = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      side: THREE.DoubleSide,
+      depthWrite: true,
+    });
+    const blackCircle = new THREE.Mesh(blackCircleGeometry, blackCircleMaterial);
+    blackCircle.rotation.x = -Math.PI / 2;
+    blackCircle.position.y = 0.015; // Slightly above plane to avoid z-fighting
+    blackCircle.renderOrder = 1; // Render after plane
+
+    // Create inner wall (cylinder with gradient-like shading)
+    const innerWallGeometry = new THREE.CylinderGeometry(
+      innerRadius,     // top radius
+      innerRadius * 0.95, // bottom radius (slightly tapered for depth)
+      height,
+      32,
+      1,
+      true            // open ended
+    );
+    const innerWallMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a,
+      side: THREE.BackSide,
+      roughness: 0.9,
+      metalness: 0.1,
+    });
+    const innerWall = new THREE.Mesh(innerWallGeometry, innerWallMaterial);
+    innerWall.position.y = -height / 2;
+
+    // Create bottom ring (darker gradient at bottom of hole)
+    const bottomRingGeometry = new THREE.CircleGeometry(innerRadius * 0.95, 32);
+    const bottomRingMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0a0a0a,
+      side: THREE.DoubleSide,
+      roughness: 1.0,
+    });
+    const bottomRing = new THREE.Mesh(bottomRingGeometry, bottomRingMaterial);
+    bottomRing.rotation.x = -Math.PI / 2;
+    bottomRing.position.y = -height;
+
+    // Create deep black void below (for falling objects)
+    const voidGeometry = new THREE.CylinderGeometry(innerRadius, innerRadius, height * 4, 32);
+    const voidMaterial = new THREE.MeshBasicMaterial({
       color: 0x000000,
       side: THREE.DoubleSide,
     });
-    const holeCircle = new THREE.Mesh(holeGeometry, holeMaterial);
-    holeCircle.rotation.x = -Math.PI / 2;
-    holeCircle.position.y = 0.01;
+    const voidCylinder = new THREE.Mesh(voidGeometry, voidMaterial);
+    voidCylinder.position.y = -height - (height * 4) / 2;
 
     this.mesh.add(rim);
-    this.mesh.add(holeCircle);
+    this.mesh.add(blackCircle);
+    this.mesh.add(innerWall);
+    this.mesh.add(bottomRing);
+    this.mesh.add(voidCylinder);
   }
 
   addToScene(scene: THREE.Scene): void {
@@ -64,14 +118,44 @@ export class Hole {
   grow(amount: number): void {
     this.radius += amount;
 
-    // Update rim
+    const height = 0.5;
+    const innerRadius = this.radius * 0.85;
+
+    // Update rim (torus)
     const rim = this.mesh.children[0] as THREE.Mesh;
     rim.geometry.dispose();
-    rim.geometry = new THREE.RingGeometry(this.radius * 0.9, this.radius, 32);
+    rim.geometry = new THREE.TorusGeometry(
+      (this.radius + innerRadius) / 2,
+      (this.radius - innerRadius) / 2,
+      16,
+      32
+    );
 
-    // Update hole interior
-    const holeCircle = this.mesh.children[1] as THREE.Mesh;
-    holeCircle.geometry.dispose();
-    holeCircle.geometry = new THREE.CircleGeometry(this.radius * 0.9, 32);
+    // Update black circle
+    const blackCircle = this.mesh.children[1] as THREE.Mesh;
+    blackCircle.geometry.dispose();
+    blackCircle.geometry = new THREE.CircleGeometry(innerRadius, 32);
+
+    // Update inner wall
+    const innerWall = this.mesh.children[2] as THREE.Mesh;
+    innerWall.geometry.dispose();
+    innerWall.geometry = new THREE.CylinderGeometry(
+      innerRadius,
+      innerRadius * 0.95,
+      height,
+      32,
+      1,
+      true
+    );
+
+    // Update bottom ring
+    const bottomRing = this.mesh.children[3] as THREE.Mesh;
+    bottomRing.geometry.dispose();
+    bottomRing.geometry = new THREE.CircleGeometry(innerRadius * 0.95, 32);
+
+    // Update void cylinder
+    const voidCylinder = this.mesh.children[4] as THREE.Mesh;
+    voidCylinder.geometry.dispose();
+    voidCylinder.geometry = new THREE.CylinderGeometry(innerRadius, innerRadius, height * 4, 32);
   }
 }

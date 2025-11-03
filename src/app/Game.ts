@@ -70,6 +70,11 @@ export class Game {
     this.hole = new Hole(DEFAULT_CONFIG.initialHoleRadius, this.physicsWorld.world);
     this.hole.addToScene(this.scene);
 
+    // Add debug physics visualization
+    for (const debugMesh of this.physicsWorld.debugMeshes) {
+      this.scene.add(debugMesh);
+    }
+
     // Initialize quadtree
     const halfPlane = DEFAULT_CONFIG.planeSize / 2;
     this.quadtree = new Quadtree({
@@ -181,6 +186,7 @@ export class Game {
 
           const obj = new GameObject(x, z, this.physicsWorld.world, {
             model: model,
+            modelName: name, // Pass model name for physics config lookup
             size: this.hole.radius * sizesMultipliers[i],
             mass: 2,
             friction: 0.7,
@@ -225,6 +231,16 @@ export class Game {
         // Grow hole every 10 objects
         if (Math.floor(this.score / 10) > Math.floor(previousScore / 10)) {
           this.hole.grow(0.5);
+
+          // Remove old debug meshes from scene
+          for (const debugMesh of this.physicsWorld.debugMeshes) {
+            this.scene.remove(debugMesh);
+          }
+
+          // Add new debug meshes (they were recreated in rebuildGround)
+          for (const debugMesh of this.physicsWorld.debugMeshes) {
+            this.scene.add(debugMesh);
+          }
         }
 
         apple.markConsumed();
@@ -254,6 +270,16 @@ export class Game {
         // Grow hole every 10 objects
         if (Math.floor(this.score / 10) > Math.floor(previousScore / 10)) {
           this.hole.grow(0.5);
+
+          // Remove old debug meshes from scene
+          for (const debugMesh of this.physicsWorld.debugMeshes) {
+            this.scene.remove(debugMesh);
+          }
+
+          // Add new debug meshes (they were recreated in rebuildGround)
+          for (const debugMesh of this.physicsWorld.debugMeshes) {
+            this.scene.add(debugMesh);
+          }
         }
 
         obj.markConsumed();
@@ -292,6 +318,15 @@ export class Game {
 
     // Update physics world with hole position
     this.physicsWorld.updateHole(this.hole.position.x, this.hole.position.z, this.hole.radius);
+
+    // Update debug mesh positions to follow hole
+    const holeOffset = { x: this.hole.position.x, z: this.hole.position.z };
+    for (let i = 0; i < this.physicsWorld.debugMeshes.length; i++) {
+      const debugMesh = this.physicsWorld.debugMeshes[i];
+      const originalPos = this.physicsWorld.debugMeshOriginalPositions[i];
+      debugMesh.position.x = originalPos.x + holeOffset.x;
+      debugMesh.position.z = originalPos.z + holeOffset.z;
+    }
 
     // Update physics
     this.physicsWorld.step(deltaTime);

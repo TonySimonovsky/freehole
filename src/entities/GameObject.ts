@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { ModelPhysicsRegistry } from '../shared/PhysicsShapes';
 
 interface GameObjectConfig {
   modelPath?: string;  // Path to .glb/.gltf file
   model?: THREE.Group; // Pre-loaded model
+  modelName?: string;  // Name for physics config lookup
   size: number;
   mass: number;
   friction?: number;
@@ -80,7 +82,7 @@ export class GameObject {
       }
     });
 
-    // Create physics body with box shape
+    // Create physics body
     this.body = new CANNON.Body({
       mass: config.mass,
       position: new CANNON.Vec3(x, startY, z),
@@ -92,15 +94,102 @@ export class GameObject {
       }),
     });
 
-    // Use box collision shape based on bounding box
-    const halfExtents = new CANNON.Vec3(
-      boxSize.x / 2,
-      boxSize.y / 2,
-      boxSize.z / 2
-    );
-    this.body.addShape(new CANNON.Box(halfExtents));
+    // Check if we have a custom physics config for this model
+    const physicsConfig = config.modelName ? ModelPhysicsRegistry.get(config.modelName) : undefined;
+
+    if (physicsConfig) {
+      // Use registered physics configuration
+      this.applyPhysicsConfig(physicsConfig, boxSize);
+    } else {
+      // Use automatic physics generation (fallback)
+      this.generateAutoPhysics(boxSize);
+    }
 
     physicsWorld.addBody(this.body);
+  }
+
+  private applyPhysicsConfig(config: any, boxSize: THREE.Vector3): void {
+    const cylinderQuat = new CANNON.Quaternion();
+    cylinderQuat.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+
+    if (config.type === 'cylinders' && config.cylinders) {
+      const baseRadius = Math.min(boxSize.x, boxSize.z) / 2;
+
+      for (const cyl of config.cylinders) {
+        const radius = baseRadius * cyl.radiusScale;
+        const height = boxSize.y * cyl.heightScale;
+
+        const cylinder = new CANNON.Cylinder(radius, radius, height, 8);
+
+        // Position is relative to bounding box (-1 to 1 range)
+        const offset = new CANNON.Vec3(
+          cyl.position.x * boxSize.x / 2,
+          cyl.position.y * boxSize.y / 2,
+          cyl.position.z * boxSize.z / 2
+        );
+
+        this.body.addShape(cylinder, offset, cylinderQuat);
+      }
+    } else if (config.type === 'spheres' && config.spheres) {
+      const avgSize = (boxSize.x + boxSize.y + boxSize.z) / 3;
+
+      for (const sph of config.spheres) {
+        const radius = avgSize * sph.radiusScale;
+        const sphere = new CANNON.Sphere(radius);
+
+        // Position is relative to bounding box (-1 to 1 range)
+        const offset = new CANNON.Vec3(
+          sph.position.x * boxSize.x / 2,
+          sph.position.y * boxSize.y / 2,
+          sph.position.z * boxSize.z / 2
+        );
+
+        this.body.addShape(sphere, offset);
+      }
+    } else if (config.type === 'box' && config.box) {
+      const box = new CANNON.Box(new CANNON.Vec3(
+        config.box.halfExtents.x * boxSize.x,
+        config.box.halfExtents.y * boxSize.y,
+        config.box.halfExtents.z * boxSize.z
+      ));
+      const offset = config.box.position
+        ? new CANNON.Vec3(
+            config.box.position.x * boxSize.x / 2,
+            config.box.position.y * boxSize.y / 2,
+            config.box.position.z * boxSize.z / 2
+          )
+        : undefined;
+      this.body.addShape(box, offset);
+    } else if (config.type === 'custom' && config.customShapes) {
+      const shapes = config.customShapes(boxSize);
+      for (const shapeData of shapes) {
+        this.body.addShape(shapeData.shape, shapeData.offset, shapeData.quaternion);
+      }
+    }
+  }
+
+  private generateAutoPhysics(boxSize: THREE.Vector3): void {
+    // Automatic physics generation - 3 cylinders with estimated mass center
+    const cylinderQuat = new CANNON.Quaternion();
+    cylinderQuat.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+
+    // Bottom cylinder - always larger for ground stability
+    const bottomRadius = Math.min(boxSize.x, boxSize.z) / 2 * 1.2;
+    const bottomHeight = boxSize.y * 0.4;
+    const bottomCylinder = new CANNON.Cylinder(bottomRadius, bottomRadius, bottomHeight, 8);
+    this.body.addShape(bottomCylinder, new CANNON.Vec3(0, -boxSize.y * 0.3, 0), cylinderQuat);
+
+    // Middle cylinder
+    const midRadius = Math.min(boxSize.x, boxSize.z) / 2 * 0.9;
+    const midHeight = boxSize.y * 0.4;
+    const midCylinder = new CANNON.Cylinder(midRadius, midRadius, midHeight, 8);
+    this.body.addShape(midCylinder, new CANNON.Vec3(0, 0, 0), cylinderQuat);
+
+    // Top cylinder
+    const topRadius = Math.min(boxSize.x, boxSize.z) / 2 * 0.7;
+    const topHeight = boxSize.y * 0.3;
+    const topCylinder = new CANNON.Cylinder(topRadius, topRadius, topHeight, 8);
+    this.body.addShape(topCylinder, new CANNON.Vec3(0, boxSize.y * 0.35, 0), cylinderQuat);
   }
 
   update(): void {
